@@ -14,7 +14,7 @@ import {
 	permit2Address,
 	permit2RuntimeBytecode,
 	connectSigner,
-} from "./testHelper";
+} from "./helper";
 
 // Contracts ABI + Bytecode
 import { abi as Permit2ABI } from "../artifacts/contracts/IPermit2.sol/IPermit2.json";
