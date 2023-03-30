@@ -1,0 +1,24 @@
+{
+	"name": "permit2-helper",
+	"author": "Vladimir Kumalagov",
+	"license": "MIT",
+	"version": "0.0.1",
+	"description": "Signature creation helper for Uniswap Permit2",
+	"main": "dist/index.js",
+	"types": "dist/types/index.d.js",
+	"files": [
+		"dist/"
+	],
+	"scripts": {
+		"build": "rm -rf dist && npx tsc"
+	},
+	"keywords": [
+		"Uniswap",
+		"Permit2",
+		"Permit2SignatureHelper"
+	],
+	"dependencies": {
+		"ethers": "6.2.3",
+		"typescript": "^5.0.2"
+	}
+}
