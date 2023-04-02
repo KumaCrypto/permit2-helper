@@ -1,43 +1,39 @@
 import { ethers } from "ethers";
 
-type TypeElement = Record<string, ethers.TypedDataField[]>;
+export type TypeElement = Record<string, ethers.TypedDataField[]>;
+export type SignerLike = ethers.Signer | ethers.Wallet;
+export type WitnessValue = Record<string, unknown>;
 
-type PermitSigner = ethers.Signer | ethers.Wallet;
-
-interface DomainOptions {
+export interface DomainOptions {
 	chainId?: ethers.BigNumberish;
 	verifyingContract?: string;
 }
 
-interface PermitTransferFromArgs {
+export interface PermitTransferFromArgs {
 	permitted: TokenPermissions;
 	spender: string;
 	nonce: ethers.BigNumberish;
 	deadline: ethers.BigNumberish;
 }
 
-interface PermitWitnessTransferFromTypes {
-	witnessTypes: ethers.TypedDataField[];
-	witnessSubTypes?: TypeElement;
+export interface PermitWitnessTransferFromTypes {
+	witnessType: ethers.TypedDataField;
+	witnessSubTypes: TypeElement;
 }
 
-interface PermitWitnessTransferFromArgs extends PermitTransferFromArgs {
-	witnessValue: Record<string, any>;
-}
-
-interface TokenPermissions {
+export interface TokenPermissions {
 	token: string;
 	amount: string | BigInt;
 }
 
-interface Permit2ConstructorParams {
-	signer?: PermitSigner;
+export interface Permit2ConstructorParams {
+	signer?: SignerLike;
 	domain?: DomainOptions;
 }
 
-class Permit2 {
+export class Permit2 {
 	domain: ethers.TypedDataDomain;
-	signer: PermitSigner | null;
+	signer: SignerLike | null;
 
 	/**
 	 * @param options - default settings for Permit2 (signer / domain)
@@ -62,7 +58,7 @@ class Permit2 {
 	 */
 	async signPermitTransferFrom(
 		params: PermitTransferFromArgs,
-		signer?: PermitSigner | null,
+		signer?: SignerLike | null,
 		domainOptions?: DomainOptions | null,
 	): Promise<string> {
 		let domain = domainOptions
@@ -90,9 +86,10 @@ class Permit2 {
 	 * @returns signature
 	 */
 	async signPermitWitnessTransferFrom(
-		params: PermitWitnessTransferFromArgs,
+		params: PermitTransferFromArgs,
+		witnessValue: WitnessValue,
 		witnessTypes: PermitWitnessTransferFromTypes,
-		signer?: PermitSigner | null,
+		signer?: SignerLike | null,
 		domainOptions?: DomainOptions | null,
 	): Promise<string> {
 		let domain = domainOptions
@@ -102,11 +99,13 @@ class Permit2 {
 
 		if (!signer) throw new Error("Signer is not defined");
 
-		return await signer.signTypedData(
-			domain,
-			this.getWitnessTransferFromTypes(witnessTypes),
-			params,
-		);
+		const paramsToSign = {
+			...params,
+			...witnessValue,
+		};
+		const paramsTypes = this.getWitnessTransferFromTypes(witnessTypes);
+
+		return await signer.signTypedData(domain, paramsTypes, paramsToSign);
 	}
 
 	/**
@@ -132,7 +131,7 @@ class Permit2 {
 	}
 
 	/** @param signer - new default signer */
-	updateSigner(signer: PermitSigner) {
+	updateSigner(signer: SignerLike) {
 		this.signer = signer;
 	}
 
@@ -154,18 +153,22 @@ class Permit2 {
 	getWitnessTransferFromTypes(
 		witnessTypes: PermitWitnessTransferFromTypes,
 	): TypeElement {
-		const defaultTransferTypesWithWitness = {
+		//TODO Maybe we have opportunity to supporting non structure value?
+		if (!witnessTypes.witnessSubTypes)
+			throw new Error(
+				`You have not provided types for your witness value! At the moment, only structures are supported :(`,
+			);
+
+		const types = {
 			PermitWitnessTransferFrom: [
 				...this.getDefaultTransferTypes(),
-				...witnessTypes.witnessTypes,
+				witnessTypes.witnessType,
 			],
+			TokenPermissions: this.getTokenPermissionsType(),
 		};
 
-		const encoder = ethers.TypedDataEncoder.from({
-			...defaultTransferTypesWithWitness,
-			...witnessTypes.witnessSubTypes,
-			TokenPermissions: this.getTokenPermissionsType(),
-		});
+		Object.assign(types, witnessTypes.witnessSubTypes);
+		const encoder = ethers.TypedDataEncoder.from(types);
 
 		return encoder.types;
 	}
@@ -190,12 +193,10 @@ class Permit2 {
 	}
 
 	/** @returns types for TokenPermissions struct */
-	getTokenPermissionsType() {
+	getTokenPermissionsType(): ethers.TypedDataField[] {
 		return [
 			{ type: "address", name: "token" },
 			{ type: "uint256", name: "amount" },
 		];
 	}
 }
-
-export { Permit2 };

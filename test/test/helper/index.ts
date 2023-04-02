@@ -23,4 +23,5 @@ export function connectSigner(
 	return contract.connect(user) as ethers.Contract;
 }
 
+export { baseFixture } from "./baseFixture";
 export { permit2RuntimeBytecode, permit2Address } from "./constants";
