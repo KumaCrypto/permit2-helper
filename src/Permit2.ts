@@ -31,21 +31,45 @@ export interface Permit2ConstructorParams {
 	domain?: DomainOptions;
 }
 
-export class Permit2 {
+export interface DomainOptionsAndSigner {
+	domainOptions: DomainOptions | null | undefined;
+	signer: SignerLike | null | undefined;
+}
+
+export interface DomainAndSigner {
 	domain: ethers.TypedDataDomain;
-	signer: SignerLike | null;
+	signer: SignerLike;
+}
+
+export class Permit2 {
+	private domain: ethers.TypedDataDomain;
+	private signer: SignerLike | null;
 
 	/**
 	 * @param options - default settings for Permit2 (signer / domain)
-	 * Can be setted after construction
+	 * Can be set after construction
 	 */
-	constructor(options?: Permit2ConstructorParams) {
+	public constructor(options?: Permit2ConstructorParams) {
 		if (!options) options = {};
 
 		this.signer = options.signer ? options.signer : null;
 		this.domain = options.domain
 			? this.createDomain(options.domain)
 			: this.getDefaultDomain();
+	}
+
+	/** @param signer - new default signer */
+	public updateSigner(signer: SignerLike) {
+		this.signer = signer;
+	}
+
+	/**
+	 * @param privateKey - pk from which will be derived signer
+	 * @returns new signer instance
+	 */
+	public updateSignerFromPrivateKey(privateKey: string) {
+		this.signer = new ethers.Wallet(privateKey);
+		return this.signer;
 	}
 
 	/**
@@ -56,24 +80,22 @@ export class Permit2 {
 	 *
 	 * @returns signature
 	 */
-	async signPermitTransferFrom(
+	public async signPermitTransferFrom(
 		params: PermitTransferFromArgs,
-		signer?: SignerLike | null,
 		domainOptions?: DomainOptions | null,
+		signer?: SignerLike | null,
 	): Promise<string> {
-		let domain = domainOptions
-			? this.createDomain(domainOptions)
-			: this.domain;
-		signer = signer ? signer : this.signer;
-
-		if (!signer) throw new Error("Signer is not defined");
+		const { domain, signer: permitSigner } = this.getDomainAndSigner({
+			domainOptions,
+			signer,
+		});
 
 		const types = {
 			PermitTransferFrom: this.getDefaultTransferTypes(),
 			TokenPermissions: this.getTokenPermissionsType(),
 		};
 
-		return await signer.signTypedData(domain, types, params);
+		return await permitSigner.signTypedData(domain, types, params);
 	}
 
 	/**
@@ -85,38 +107,41 @@ export class Permit2 {
 	 *
 	 * @returns signature
 	 */
-	async signPermitWitnessTransferFrom(
+	public async signPermitWitnessTransferFrom(
 		params: PermitTransferFromArgs,
 		witnessValue: WitnessValue,
 		witnessTypes: PermitWitnessTransferFromTypes,
-		signer?: SignerLike | null,
 		domainOptions?: DomainOptions | null,
+		signer?: SignerLike | null,
 	): Promise<string> {
-		let domain = domainOptions
-			? this.createDomain(domainOptions)
-			: this.domain;
-		signer = signer ? signer : this.signer;
-
-		if (!signer) throw new Error("Signer is not defined");
+		const { domain, signer: permitSigner } = this.getDomainAndSigner({
+			domainOptions,
+			signer,
+		});
 
 		const paramsToSign = {
 			...params,
 			...witnessValue,
 		};
+
 		const paramsTypes = this.getWitnessTransferFromTypes(witnessTypes);
 
-		return await signer.signTypedData(domain, paramsTypes, paramsToSign);
+		return await permitSigner.signTypedData(
+			domain,
+			paramsTypes,
+			paramsToSign,
+		);
 	}
 
 	/**
 	 * @param domainOpt - options which will be changed in default domain
 	 *
-	 * domainOpt.chainId - if you use Permit2 in chain deffered from ETH
+	 * domainOpt.chainId - if you use Permit2 in chain differed from ETH
 	 * domainOpt.verifyingContract - if you use Permit2 in tests with another address
 	 *
 	 * @returns new domain
 	 */
-	createDomain(domainOpt: DomainOptions): ethers.TypedDataDomain {
+	public createDomain(domainOpt: DomainOptions): ethers.TypedDataDomain {
 		if (domainOpt.chainId) {
 			domainOpt.chainId = domainOpt.chainId.toString();
 		}
@@ -125,45 +150,35 @@ export class Permit2 {
 	}
 
 	/** Same with createDomain, but set default domain */
-	createAndSetDomain(domainOpt: DomainOptions): ethers.TypedDataDomain {
+	public createAndSetDomain(
+		domainOpt: DomainOptions,
+	): ethers.TypedDataDomain {
 		this.domain = this.createDomain(domainOpt);
 		return this.domain;
 	}
 
-	/** @param signer - new default signer */
-	updateSigner(signer: SignerLike) {
-		this.signer = signer;
-	}
-
-	/**
-	 * @param privateKey - pk from which will be derived signer
-	 * @returns new signer instance
-	 */
-	updateSignerFromPrivateKey(privateKey: string) {
-		this.signer = new ethers.Wallet(privateKey);
-		return this.signer;
-	}
-
 	/**
 	 * @param witnessTypes.witnessTypes: additional arguments types to be signed,
-	 * @param witnessTypes.witnessSubTypes: if witnessTypes has nested arguments with referece type (structs / array[n] / array[])
+	 * @param witnessTypes.witnessSubTypes: if witnessTypes has nested arguments with reference type (structs / array[n] / array[])
 	 *
 	 * @returns types for permitWitnessTransferFrom
 	 */
-	getWitnessTransferFromTypes(
+	public getWitnessTransferFromTypes(
 		witnessTypes: PermitWitnessTransferFromTypes,
 	): TypeElement {
-		//TODO Maybe we have opportunity to supporting non structure value?
-		if (!witnessTypes.witnessSubTypes)
+		if (!witnessTypes.witnessSubTypes) {
 			throw new Error(
-				`You have not provided types for your witness value! At the moment, only structures are supported :(`,
+				`You have not provided types for your witness value. At the moment, only structures are supported :(`,
 			);
+		}
+
+		const PermitWitnessTransferFrom = [
+			...this.getDefaultTransferTypes(),
+			witnessTypes.witnessType,
+		];
 
 		const types = {
-			PermitWitnessTransferFrom: [
-				...this.getDefaultTransferTypes(),
-				witnessTypes.witnessType,
-			],
+			PermitWitnessTransferFrom,
 			TokenPermissions: this.getTokenPermissionsType(),
 		};
 
@@ -174,7 +189,7 @@ export class Permit2 {
 	}
 
 	/** @returns default domain for Permit2 in ETH */
-	getDefaultDomain(): ethers.TypedDataDomain {
+	public getDefaultDomain(): ethers.TypedDataDomain {
 		return {
 			name: "Permit2",
 			chainId: "1",
@@ -182,8 +197,8 @@ export class Permit2 {
 		};
 	}
 
-	/** @returns default types for permit...TranferFrom function args */
-	getDefaultTransferTypes(): ethers.TypedDataField[] {
+	/** @returns default types for permit...TransferFrom function args */
+	public getDefaultTransferTypes(): ethers.TypedDataField[] {
 		return [
 			{ type: "TokenPermissions", name: "permitted" },
 			{ type: "address", name: "spender" },
@@ -193,10 +208,36 @@ export class Permit2 {
 	}
 
 	/** @returns types for TokenPermissions struct */
-	getTokenPermissionsType(): ethers.TypedDataField[] {
+	public getTokenPermissionsType(): ethers.TypedDataField[] {
 		return [
 			{ type: "address", name: "token" },
 			{ type: "uint256", name: "amount" },
 		];
+	}
+
+	private getDomainAndSigner({
+		domainOptions,
+		signer,
+	}: DomainOptionsAndSigner): DomainAndSigner {
+		if (!signer) {
+			if (this.signer) {
+				signer = this.signer;
+			} else throw new Error("Signer is not defined");
+		}
+		const domain = domainOptions
+			? this.createDomain(domainOptions)
+			: this.domain;
+
+		return { domain, signer };
+	}
+
+	/** @returns current domain */
+	public get getDomain(): ethers.TypedDataDomain {
+		return this.domain;
+	}
+
+	/** @returns current signer */
+	public get getSigner(): SignerLike | null {
+		return this.signer;
 	}
 }
