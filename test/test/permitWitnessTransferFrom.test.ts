@@ -4,8 +4,8 @@ import { baseFixture, connectSigner } from "./helper";
 
 import { expect } from "chai";
 
-describe("Permit2 | permitwitnessTransferFrom", function () {
-	it("permitwitnessTransferFrom", async function () {
+describe("Permit2 | permitWitnessTransferFrom", function () {
+	it("permitWitnessTransferFrom", async function () {
 		const {
 			permit2Helper,
 			token,

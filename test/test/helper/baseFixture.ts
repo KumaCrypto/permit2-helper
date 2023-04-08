@@ -10,7 +10,7 @@ import {
 
 //  ||  ||  ||  ||  ||  ||  ||  ||
 //  \/  \/  \/  \/  \/  \/  \/  \/
-// We have to get out of harhdat/ethers because it's not compatible with ethers ^6.0.0
+// We have to get out of hardhat/ethers because it's not compatible with ethers ^6.0.0
 //  /\  /\  /\  /\  /\  /\  /\  /\
 //  ||  ||  ||  ||  ||  ||  ||  ||
 export async function baseFixture() {

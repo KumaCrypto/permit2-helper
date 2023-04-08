@@ -28,7 +28,7 @@ export interface TokenPermissions {
 
 export interface Permit2ConstructorParams {
 	signer?: SignerLike;
-	domain?: DomainOptions;
+	domainOpt?: DomainOptions;
 }
 
 export interface DomainOptionsAndSigner {
@@ -53,8 +53,8 @@ export class Permit2 {
 		if (!options) options = {};
 
 		this.signer = options.signer ? options.signer : null;
-		this.domain = options.domain
-			? this.createDomain(options.domain)
+		this.domain = options.domainOpt
+			? this.createDomain(options.domainOpt)
 			: this.getDefaultDomain();
 	}
 
@@ -111,8 +111,8 @@ export class Permit2 {
 		params: PermitTransferFromArgs,
 		witnessValue: WitnessValue,
 		witnessTypes: PermitWitnessTransferFromTypes,
-		domainOptions?: DomainOptions | null,
-		signer?: SignerLike | null,
+		domainOptions?: DomainOptions,
+		signer?: SignerLike,
 	): Promise<string> {
 		const { domain, signer: permitSigner } = this.getDomainAndSigner({
 			domainOptions,
@@ -168,7 +168,7 @@ export class Permit2 {
 	): TypeElement {
 		if (!witnessTypes.witnessSubTypes) {
 			throw new Error(
-				`You have not provided types for your witness value. At the moment, only structures are supported :(`,
+				`You have not provided types for your witness value.`,
 			);
 		}
 
