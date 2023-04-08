@@ -1,5 +1,7 @@
 # Permit2-helper
 
+[![https://nodei.co/npm/permit2-helper.png?downloads=true](https://nodei.co/npm/permit2-helper.png?downloads=true)](https://www.npmjs.com/package/permit2-helper)
+
 ## Overview
 
 This library is designed to simplify interaction with the Uniswap Permit2 smart contract, which adds "permit" functionality to tokens that don't support it.
